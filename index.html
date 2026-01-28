@@ -2,95 +2,94 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Lava Genie Pro - Local Engine</title>
+    <title>Lava Genie Pro - Ultimate Guitar</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
-        :root { --primary: #ffaa00; --bg: #121212; --panel: #252525; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        :root { --primary: #ffaa00; --bg: #121212; --panel: #1e1e1e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; padding: 10px; margin: 0; }
+        
         .screen {
-            background: #000; width: 100%; max-width: 500px; height: 100px;
-            border-radius: 20px; border: 2px solid #333; margin: 20px 0;
-            display: flex; align-items: center; padding: 0 15px; overflow-x: auto;
-            box-shadow: inset 0 0 15px rgba(255,170,0,0.1);
+            background: #000; width: 95%; max-width: 600px; height: 80px;
+            border-radius: 15px; border: 2px solid #333; margin: 15px 0;
+            display: flex; align-items: center; padding: 0 15px; overflow-x: auto; gap: 8px;
         }
-        .chord-card {
-            background: #222; min-width: 60px; height: 60px; margin-right: 12px;
-            border-radius: 10px; display: flex; align-items: center; justify-content: center;
-            font-weight: bold; font-size: 20px; color: #444; border: 1px solid #333; transition: 0.2s;
+        .chord-tag {
+            background: #222; min-width: 50px; height: 50px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 18px; color: #666; border: 1px solid #333;
         }
-        .chord-card.active { background: var(--primary); color: #000; box-shadow: 0 0 15px var(--primary); transform: scale(1.1); }
-        .chord-card.added { color: #eee; border-color: #555; }
-        .controls { background: var(--panel); padding: 20px; border-radius: 25px; width: 100%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .group-label { font-size: 12px; color: #777; text-transform: uppercase; margin-bottom: 10px; display: block; }
+        .chord-tag.active { background: var(--primary); color: #000; box-shadow: 0 0 15px var(--primary); }
+
+        .controls { background: var(--panel); padding: 20px; border-radius: 25px; width: 95%; max-width: 600px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .group-label { font-size: 11px; color: #777; text-transform: uppercase; margin-bottom: 10px; display: block; }
+
+        /* Lưới hợp âm 4 cột */
         .btn-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
-        button { border: none; padding: 12px; border-radius: 10px; cursor: pointer; font-weight: bold; transition: 0.2s; background: #333; color: #ccc; }
-        button:active { transform: scale(0.95); }
-        button.style-btn.selected { background: #eee; color: #000; }
-        .play-btn { width: 100%; padding: 18px; border-radius: 15px; font-size: 18px; background: #27ae60; color: white; }
+        
+        .chord-btn { 
+            position: relative; height: 80px; background: #333; border: none; 
+            border-radius: 12px; cursor: pointer; transition: 0.1s;
+        }
+        .chord-btn:active { transform: scale(0.95); background: #444; }
+        .chord-btn .name { font-size: 24px; font-weight: bold; color: var(--primary); display: block; }
+        .chord-btn .add-icon { 
+            position: absolute; top: 5px; right: 5px; width: 20px; height: 20px; 
+            background: rgba(0,0,0,0.3); border-radius: 50%; font-size: 14px; color: #fff;
+        }
+
+        .style-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+        .style-btn { padding: 12px; border-radius: 10px; background: #222; color: #888; border: none; cursor: pointer; font-weight: bold; }
+        .style-btn.selected { background: #eee; color: #000; }
+
+        .main-action { display: flex; gap: 10px; }
+        .play-btn { flex: 3; padding: 18px; border-radius: 15px; font-size: 18px; background: #27ae60; color: white; border: none; cursor: pointer; font-weight: bold; }
         .play-btn.stop { background: #e74c3c; }
-        #status { font-size: 10px; text-align: center; margin-top: 10px; color: #555; }
+        .clear-btn { flex: 1; background: #444; color: white; border-radius: 15px; border: none; cursor: pointer; }
     </style>
 </head>
 <body>
 
-<h2 style="color: var(--primary); font-style: italic;">LAVA GENIE PRO</h2>
+<h2 style="color: var(--primary); margin: 10px 0;">GUITAR PRO STATION</h2>
 
 <div class="screen" id="display">
-    <div style="color: #333; width: 100%; text-align: center;">Đang đợi nạp âm thanh...</div>
+    <div style="color: #333; width: 100%; text-align: center;">Chưa có vòng lặp...</div>
 </div>
 
 <div class="controls">
-    <span class="group-label">Chọn vòng hợp âm</span>
-    <div class="btn-grid">
-        <button onclick="add('C')">C</button>
-        <button onclick="add('G')">G</button>
-        <button onclick="add('Am')">Am</button>
-        <button onclick="add('F')">F</button>
-        <button onclick="add('Em')">Em</button>
-        <button onclick="add('Dm')">Dm</button>
-        <button onclick="undo()" style="background: #444;">↩</button>
-        <button onclick="reset()" style="color: #e74c3c;">Xóa</button>
-    </div>
+    <span class="group-label">Hợp âm (Bấm để chơi / (+) để lặp)</span>
+    <div class="btn-grid" id="chord-container">
+        </div>
 
-    <span class="group-label">Chọn điệu</span>
-    <div class="btn-grid" style="grid-template-columns: repeat(3, 1fr);">
+    <span class="group-label">Điệu nhạc</span>
+    <div class="style-grid">
         <button class="style-btn selected" onclick="setStyle('quạt', this)">Quạt Chả</button>
         <button class="style-btn" onclick="setStyle('tỉa', this)">Tỉa 4/4</button>
         <button class="style-btn" onclick="setStyle('fox', this)">Điệu Fox</button>
     </div>
 
-    <button class="play-btn" id="playBtn" onclick="run()">ĐANG NẠP FILE... ⏳</button>
-    <div id="status">Vui lòng dùng Firefox hoặc Host lên GitHub để có tiếng</div>
+    <div class="main-action">
+        <button class="play-btn" id="playBtn" onclick="toggleLoop()">CHẠY VÒNG LẶP ▶</button>
+        <button class="clear-btn" onclick="reset()">XÓA</button>
+    </div>
 </div>
 
 <script>
-    // 1. KHỞI TẠO SAMPLER DÙNG FILE LOCAL
     const sampler = new Tone.Sampler({
-        urls: {
-            "A1": "A1.mp3",
-            "A2": "A2.mp3",
-            "A3": "A3.mp3",
-            "A4": "A4.mp3",
-            "A5": "A5.mp3",
-            "A6": "A6.mp3"
-        },
-        baseUrl: "./guitar/", 
-        onload: () => { 
-            document.getElementById('playBtn').innerText = "CHẠY VÒNG LẶP ▶";
-            document.getElementById('display').innerHTML = '<div style="color: #333; width: 100%; text-align: center;">Sẵn sàng! Chọn hợp âm đi.</div>';
-        }
+        urls: { "A1": "A1.mp3", "A2": "A2.mp3", "A3": "A3.mp3", "A4": "A4.mp3", "A5": "A5.mp3" },
+        baseUrl: "./guitar/",
+        onload: () => { document.getElementById('playBtn').innerText = "CHẠY VÒNG LẶP ▶"; }
     }).toDestination();
 
-    const reverb = new Tone.Reverb(1.5).toDestination();
+    const reverb = new Tone.Reverb(2).toDestination();
     sampler.connect(reverb);
 
     const CHORDS = {
-        'C': ["C3", "E3", "G3", "C4", "E4"],
-        'G': ["G2", "B2", "D3", "G3", "B3", "G4"],
-        'Am':["A2", "E3", "A3", "C4", "E4"],
-        'F': ["F2", "C3", "F3", "A3", "C4"],
-        'Em':["E2", "B2", "E3", "G3", "B3", "E4"],
-        'Dm':["D3", "A3", "D4", "F4"]
+        'C': ["C3", "E3", "G3", "C4", "E4"], 'D': ["D3", "A3", "D4", "F#4"],
+        'E': ["E2", "B2", "E3", "G#3", "B3", "E4"], 'F': ["F2", "C3", "F3", "A3", "C4"],
+        'G': ["G2", "B2", "D3", "G3", "B3", "G4"], 'A': ["A2", "E3", "A3", "C#4", "E4"],
+        'B': ["B2", "F#3", "B3", "D#4", "F#4"], 'Am': ["A2", "E3", "A3", "C4", "E4"],
+        'Dm': ["D3", "A3", "D4", "F4"], 'Em': ["E2", "B2", "E3", "G3", "B3", "E4"],
+        'Bm': ["B2", "F#3", "B3", "D4", "F#4"], 'Bb': ["A#2", "F3", "A#3", "D4", "F4"]
     };
 
     const STYLES = {
@@ -117,68 +116,84 @@
     let step = 0;
     let playing = false;
 
-    function add(c) { queue.push(c); render(); }
-    function undo() { queue.pop(); render(); }
-    function reset() { queue = []; stop(); render(); }
-    function setStyle(s, b) {
-        currentStyle = s;
-        document.querySelectorAll('.style-btn').forEach(btn => btn.classList.remove('selected'));
-        b.classList.add('selected');
+    // Render danh sách hợp âm
+    const container = document.getElementById('chord-container');
+    Object.keys(CHORDS).forEach(name => {
+        const btn = document.createElement('button');
+        btn.className = 'chord-btn';
+        btn.innerHTML = `<span class="name">${name}</span><div class="add-icon" onclick="addToLoop(event, '${name}')">+</div>`;
+        btn.onclick = () => playManual(name);
+        container.appendChild(btn);
+    });
+
+    async function playManual(name) {
+        await Tone.start();
+        if (playing) return;
+        playChordAction(name, Tone.now());
     }
 
-    function render() {
+    function addToLoop(e, name) {
+        e.stopPropagation();
+        queue.push(name);
+        renderQueue();
+    }
+
+    function playChordAction(name, time) {
+        const chord = CHORDS[name];
+        const pattern = STYLES[currentStyle];
+        pattern.forEach(p => {
+            const playTime = time + Tone.Time(p.t);
+            if (p.type === 'down') {
+                chord.forEach((n, i) => sampler.triggerAttackRelease(n, "2n", playTime + i*0.035, 0.8));
+            } else if (p.type === 'up') {
+                [...chord].reverse().forEach((n, i) => sampler.triggerAttackRelease(n, "2n", playTime + i*0.025, 0.6));
+            } else if (p.type === 'short') {
+                sampler.triggerAttackRelease(chord.slice(-3), "16n", playTime, 0.5);
+            } else {
+                sampler.triggerAttackRelease(chord[p.s] || chord[0], "1n", playTime, 0.9);
+            }
+        });
+    }
+
+    function renderQueue() {
         const d = document.getElementById('display');
-        d.innerHTML = queue.length ? '' : '<div style="color: #333; width: 100%; text-align: center;">Chưa có hợp âm...</div>';
+        d.innerHTML = queue.length ? '' : '<div style="color: #333; width: 100%; text-align: center;">Chưa có vòng lặp...</div>';
         queue.forEach((c, i) => {
             const div = document.createElement('div');
-            div.className = `chord-card added ${i === step && playing ? 'active' : ''}`;
+            div.className = `chord-tag ${i === step && playing ? 'active' : ''}`;
             div.innerText = c;
             d.appendChild(div);
         });
     }
 
-    async function run() {
+    async function toggleLoop() {
         if (playing) { stop(); return; }
         if (!queue.length) return;
-        
         await Tone.start();
-        playing = true;
-        step = 0;
+        playing = true; step = 0;
         document.getElementById('playBtn').innerText = "DỪNG LẠI ■";
         document.getElementById('playBtn').classList.add('stop');
-
-        Tone.Transport.bpm.value = currentStyle === 'fox' ? 120 : 90;
+        Tone.Transport.bpm.value = currentStyle === 'fox' ? 120 : 95;
         Tone.Transport.scheduleRepeat(time => {
-            const chord = CHORDS[queue[step]];
-            const pattern = STYLES[currentStyle];
-            
-            Tone.Draw.schedule(() => render(), time);
-
-            pattern.forEach(p => {
-                const playTime = time + Tone.Time(p.t);
-                if (p.type === 'down') {
-                    chord.forEach((n, i) => sampler.triggerAttackRelease(n, "2n", playTime + i*0.04));
-                } else if (p.type === 'up') {
-                    [...chord].reverse().forEach((n, i) => sampler.triggerAttackRelease(n, "2n", playTime + i*0.03));
-                } else if (p.type === 'short') {
-                    sampler.triggerAttackRelease(chord.slice(-3), "16n", playTime);
-                } else {
-                    sampler.triggerAttackRelease(chord[p.s] || chord[0], "2n", playTime);
-                }
-            });
+            playChordAction(queue[step], time);
+            Tone.Draw.schedule(() => renderQueue(), time);
             step = (step + 1) % queue.length;
         }, "1m");
-        
         Tone.Transport.start();
     }
 
     function stop() {
-        playing = false;
-        Tone.Transport.stop();
-        Tone.Transport.cancel();
+        playing = false; Tone.Transport.stop(); Tone.Transport.cancel();
         document.getElementById('playBtn').innerText = "CHẠY VÒNG LẶP ▶";
         document.getElementById('playBtn').classList.remove('stop');
-        render();
+        renderQueue();
+    }
+
+    function reset() { queue = []; stop(); renderQueue(); }
+    function setStyle(s, b) {
+        currentStyle = s;
+        document.querySelectorAll('.style-btn').forEach(btn => btn.classList.remove('selected'));
+        b.classList.add('selected');
     }
 </script>
 </body>
