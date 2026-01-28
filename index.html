@@ -2,13 +2,11 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Guitar Engine v15 - Pro Station</title>
+    <title>Guitar Hybrid Pro v16</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <style>
         :root { --gold: #ffca28; --bg: #0a0a0a; --card: #1a1a1a; --green: #2ecc71; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        
-        /* Màn hình hiển thị vòng lặp */
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
         .screen {
             background: #000; width: 100%; max-width: 700px; height: 90px;
             border-radius: 20px; border: 2px solid #333; margin-bottom: 20px;
@@ -21,10 +19,7 @@
             font-weight: bold; font-size: 20px; color: #555; border: 1px solid #333;
         }
         .chord-tag.active { background: var(--gold); color: #000; box-shadow: 0 0 15px var(--gold); border: none; }
-
         .main-container { background: var(--card); padding: 25px; border-radius: 30px; width: 100%; max-width: 700px; }
-        
-        /* Lưới hợp âm khổng lồ */
         .chord-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 25px; }
         .chord-btn { 
             position: relative; height: 75px; background: #2a2a2a; border: none; 
@@ -37,13 +32,11 @@
             background: #444; border-radius: 5px; font-size: 14px; color: #fff;
             display: flex; align-items: center; justify-content: center;
         }
-        .chord-btn .add-btn:hover { background: var(--green); }
-
-        /* Lưới điệu nhạc */
         .style-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 25px; }
-        .style-btn { padding: 15px; border-radius: 12px; background: #333; color: #888; border: none; cursor: pointer; font-weight: bold; }
+        .style-btn { padding: 15px; border-radius: 12px; background: #333; color: #888; border: none; cursor: pointer; font-weight: bold; font-size: 13px; }
         .style-btn.selected { background: #fff; color: #000; }
-
+        .tempo-box { margin-bottom: 20px; background: #222; padding: 15px; border-radius: 15px; text-align: center; }
+        input[type=range] { width: 80%; cursor: pointer; accent-color: var(--gold); }
         .action-bar { display: flex; gap: 10px; }
         .play-btn { flex: 4; padding: 20px; border-radius: 15px; font-size: 20px; background: var(--green); color: white; border: none; cursor: pointer; font-weight: bold; }
         .play-btn.stop { background: #e74c3c; }
@@ -52,17 +45,20 @@
 </head>
 <body>
 
-<h1 style="color: var(--gold); font-style: italic; letter-spacing: 2px;">GUITAR HYBRID PRO</h1>
+<h1 style="color: var(--gold); font-style: italic; letter-spacing: 2px;">GUITAR HYBRID v16</h1>
 
 <div class="screen" id="display">
     <div style="color: #222; width: 100%; text-align: center;">Chạm (+) để thiết lập vòng lặp</div>
 </div>
 
 <div class="main-container">
-    <span style="color: #666; font-size: 12px; margin-bottom: 10px; display: block;">BẤM VÀO GIỮA ĐỂ CHƠI TAY / BẤM (+) ĐỂ LẶP</span>
     <div class="chord-grid" id="chordGrid"></div>
 
-    <span style="color: #666; font-size: 12px; margin-bottom: 10px; display: block;">CHỌN ĐIỆU NHẠC</span>
+    <div class="tempo-box">
+        <label style="font-size: 12px; color: #888;">TEMPO: <span id="tempoVal">90</span> BPM</label><br>
+        <input type="range" min="60" max="180" value="90" oninput="updateTempo(this.value)">
+    </div>
+
     <div class="style-grid" id="styleGrid"></div>
 
     <div class="action-bar">
@@ -72,7 +68,6 @@
 </div>
 
 <script>
-    // 1. DỮ LIỆU NHẠC LÝ
     const CHORDS_DATA = {
         'C': ["C3","E3","G3","C4","E4"], 'Cm': ["C3","D#3","G3","C4","D#4"], 'C7': ["C3","E3","G3","A#3","C4"],
         'D': ["D3","A3","D4","F#4"], 'Dm': ["D3","A3","D4","F4"], 'D7': ["D3","A3","C4","F#4"],
@@ -86,24 +81,22 @@
 
     const STYLES_DATA = {
         'Quạt Ballad': [ {t:"0:0:0",type:"down"}, {t:"0:1:0",type:"down"}, {t:"0:1:2",type:"up"}, {t:"0:2:2",type:"up"}, {t:"0:3:0",type:"down"}, {t:"0:3:2",type:"up"} ],
-        'Tỉa 4/4': [ {t:"0:0:0",s:0}, {t:"0:0:2",s:2}, {t:"0:1:0",s:3}, {t:"0:1:2",s:4}, {t:"0:2:0",s:3}, {t:"0:2:2",s:2}, {t:"0:3:0",s:4}, {t:"0:3:2",s:3} ],
+        'Rải 1: b321323': [ {t:"0:0:0",s:0}, {t:"0:0:2",s:2}, {t:"0:1:0",s:3}, {t:"0:1:2",s:4}, {t:"0:2:1",s:2}, {t:"0:2:3",s:3}, {t:"0:3:1",s:2} ],
+        'Rải 2: b3231323': [ {t:"0:0:0",s:0}, {t:"0:0:2",s:2}, {t:"0:1:0",s:3}, {t:"0:1:2",s:2}, {t:"0:2:0",s:4}, {t:"0:2:2",s:2}, {t:"0:3:0",s:3}, {t:"0:3:2",s:2} ],
         'Disco': [ {t:"0:0:0",type:"down"}, {t:"0:0:2",type:"up"}, {t:"0:1:0",type:"down"}, {t:"0:1:2",type:"up"}, {t:"0:2:0",type:"down"}, {t:"0:2:2",type:"up"}, {t:"0:3:0",type:"down"}, {t:"0:3:2",type:"up"} ],
-        'Fox': [ {t:"0:0:0",s:0}, {t:"0:0:2",type:"short"}, {t:"0:1:0",s:1}, {t:"0:1:2",type:"short"}, {t:"0:2:0",s:0}, {t:"0:2:2",type:"short"}, {t:"0:3:0",s:1}, {t:"0:3:2",type:"short"} ],
-        'Bolero': [ {t:"0:0:0",s:0}, {t:"0:0:2",s:1}, {t:"0:0:3",s:2}, {t:"0:1:0",s:3}, {t:"0:1:2",type:"down"}, {t:"0:2:0",type:"up"}, {t:"0:2:2",type:"down"}, {t:"0:3:0",type:"up"} ],
+        'Bolero': [ {t:"0:0:0",s:0}, {t:"0:1:0",type:"down"}, {t:"0:1:2",type:"up"}, {t:"0:2:0",type:"down"}, {t:"0:2:2",type:"up"}, {t:"0:3:0",type:"down"} ],
         'Slow Rock': [ {t:"0:0:0",s:0}, {t:"0:0:1.3",s:2}, {t:"0:0:2.6",s:3}, {t:"0:1:0",s:4}, {t:"0:1:1.3",s:3}, {t:"0:1:2.6",s:2} ]
     };
 
-    // 2. KHỞI TẠO ENGINE
     const sampler = new Tone.Sampler({
         urls: { "A1":"A1.mp3", "A2":"A2.mp3", "A3":"A3.mp3", "A4":"A4.mp3", "A5":"A5.mp3" },
         baseUrl: "./guitar/",
         onload: () => { document.getElementById('playBtn').innerText = "CHẠY VÒNG LẶP ▶"; }
     }).toDestination();
-    sampler.connect(new Tone.Reverb(1.5).toDestination());
+    sampler.connect(new Tone.Reverb(1.2).toDestination());
 
-    let queue = [], currentStyle = 'Quạt Ballad', step = 0, playing = false;
+    let queue = [], currentStyle = 'Quạt Ballad', step = 0, playing = false, bpm = 90;
 
-    // 3. RENDER GIAO DIỆN
     const grid = document.getElementById('chordGrid');
     Object.keys(CHORDS_DATA).forEach(name => {
         const btn = document.createElement('button');
@@ -126,7 +119,12 @@
         sGrid.appendChild(b);
     });
 
-    // 4. LOGIC XỬ LÝ
+    function updateTempo(v) {
+        bpm = v;
+        document.getElementById('tempoVal').innerText = v;
+        if (playing) Tone.Transport.bpm.value = v;
+    }
+
     async function playNow(name) {
         await Tone.start();
         if (playing) return;
@@ -144,10 +142,9 @@
         const pattern = STYLES_DATA[currentStyle];
         pattern.forEach(p => {
             const pTime = time + Tone.Time(p.t);
-            if (p.type === 'down') notes.forEach((n, i) => sampler.triggerAttackRelease(n, "2n", pTime + i*0.035, 0.8));
-            else if (p.type === 'up') [...notes].reverse().forEach((n, i) => sampler.triggerAttackRelease(n, "2n", pTime + i*0.025, 0.5));
-            else if (p.type === 'short') sampler.triggerAttackRelease(notes.slice(-3), "16n", pTime, 0.4);
-            else sampler.triggerAttackRelease(notes[p.s] || notes[0], "1n", pTime, 0.9);
+            if (p.type === 'down') notes.forEach((n, i) => sampler.triggerAttackRelease(n, "2n", pTime + i*0.045, 0.7));
+            else if (p.type === 'up') [...notes].reverse().forEach((n, i) => sampler.triggerAttackRelease(n, "2n", pTime + i*0.03, 0.4));
+            else sampler.triggerAttackRelease(notes[p.s] || notes[0], "1n", pTime, 0.8);
         });
     }
 
@@ -169,7 +166,7 @@
         playing = true; step = 0;
         document.getElementById('playBtn').innerText = "DỪNG LẠI ■";
         document.getElementById('playBtn').classList.add('stop');
-        Tone.Transport.bpm.value = (currentStyle === 'Disco' || currentStyle === 'Fox') ? 125 : 90;
+        Tone.Transport.bpm.value = bpm;
         Tone.Transport.scheduleRepeat(time => {
             executeChord(queue[step], time);
             Tone.Draw.schedule(() => renderDisplay(), time);
