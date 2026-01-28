@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Guitar Pro Offline - Full Engine</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        :root { --gold: #ffca28; --bg: #121212; --card: #1e1e1e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: #fff; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
+        
+        .container { width: 100%; max-width: 600px; }
+
+        /* Màn hình vòng lặp */
+        .screen {
+            background: #000; height: 100px; border-radius: 20px; margin-bottom: 20px;
+            display: flex; align-items: center; padding: 0 20px; overflow-x: auto; gap: 12px; border: 2px solid #333;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+        }
+        .chord-tag { background: #333; padding: 10px 18px; border-radius: 10px; font-weight: bold; color: #666; font-size: 18px; }
+        .chord-tag.active { background: var(--gold); color: #000; box-shadow: 0 0 15px var(--gold); }
+
+        /* Lưới hợp âm */
+        .pad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+        .pad {
+            background: var(--card); height: 110px; border-radius: 20px; border-bottom: 5px solid #000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; transition: 0.1s; position: relative;
+        }
+        .pad:active { transform: translateY(3px); border-bottom-width: 1px; background: #222; }
+        .pad:hover { background: #282828; }
+        .pad .name { font-size: 30px; font-weight: bold; color: var(--gold); }
+        .pad .add-btn { font-size: 11px; color: #555; margin-top: 8px; border: 1px solid #333; padding: 3px 8px; border-radius: 6px; }
+
+        /* Điều khiển */
+        .controls { background: var(--card); padding: 20px; border-radius: 25px; margin-top: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .btn-group { display: flex; gap: 10px; margin-bottom: 15px; }
+        .style-btn { flex: 1; padding: 12px; border-radius: 12px; border: none; background: #333; color: #888; cursor: pointer; font-weight: bold; }
+        .style-btn.selected { background: #eee; color: #000; }
+        
+        .main-btn { width: 100%; padding: 20px; border-radius: 15px; font-size: 18px; font-weight: bold; border: none; cursor: pointer; transition: 0.3s; }
+        .btn-run { background: #27ae60; color: white; }
+        .btn-stop { background: #e74c3c; color: white; }
+
+        .footer-action { text-align: center; font-size: 12px; color: #444; margin-top: 15px; cursor: pointer; text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2 style="text-align: center; color: var(--gold); font-style: italic;">GUITAR OFFLINE STATION</h2>
+
+    <div class="screen" id="loop-display">
+        <div style="color: #333; width: 100%; text-align: center;">Chạm hợp âm để chơi tay / Bấm (+) để nạp vòng lặp</div>
+    </div>
+
+    <div class="pad-grid">
+        <div class="pad" onclick="playManual('C')"><span class="name">C</span><div class="add-btn" onclick="addToLoop(event, 'C')">+ LẶP</div></div>
+        <div class="pad" onclick="playManual('G')"><span class="name">G</span><div class="add-btn" onclick="addToLoop(event, 'G')">+ LẶP</div></div>
+        <div class="pad" onclick="playManual('Am')"><span class="name">Am</span><div class="add-btn" onclick="addToLoop(event, 'Am')">+ LẶP</div></div>
+        <div class="pad" onclick="playManual('F')"><span class="name">F</span><div class="add-btn" onclick="addToLoop(event, 'F')">+ LẶP</div></div>
+        <div class="pad" onclick="playManual('Em')"><span class="name">Em</span><div class="add-btn" onclick="addToLoop(event, 'Em')">+ LẶP</div></div>
+        <div class="pad" onclick="playManual('Dm')"><span class="name">Dm</span><div class="add-btn" onclick="addToLoop(event, 'Dm')">+ LẶP</div></div>
+        <div class="pad" onclick="playManual('D')"><span class="name">D</span><div class="add-btn" onclick="addToLoop(event, 'D')">+ LẶP</div></div>
+        <div class="pad" onclick="playManual('E')"><span class="name">E</span><div class="add-btn" onclick="addToLoop(event, 'E')">+ LẶP</div></div>
+        <div class="pad" onclick="playManual('Bm')"><span class="name">Bm</span><div class="add-btn" onclick="addToLoop(event, 'Bm')">+ LẶP</div></div>
+    </div>
+
+    <div class="controls">
+        <div class="btn-group">
+            <button class="style-btn selected" onclick="setStyle('ballad', this)">Quạt Ballad</button>
+            <button class="style-btn" onclick="setStyle('pick', this)">Tỉa Slow Rock</button>
+            <button class="style-btn" onclick="setStyle('fox', this)">Điệu Fox</button>
+        </div>
+        <button class="main-btn btn-run" id="actionBtn" onclick="toggleLoop()">CHẠY VÒNG LẶP ▶</button>
+        <div class="footer-action" onclick="clearLoop()">Xóa danh sách lặp</div>
+    </div>
+</div>
+
+<script>
+    // 1. SOUND ENGINE - TRỎ VÀO THƯ MỤC CỤC BỘ
+// Thay thế đoạn nạp sampler cũ bằng đoạn này
+const sampler = new Tone.Sampler({
+    urls: {
+        "A1": "A1.mp3",
+        "A2": "A2.mp3",
+        "A3": "A3.mp3",
+        "A4": "A4.mp3",
+        "A5": "A5.mp3",
+        "A6": "A6.mp3"
+    },
+    baseUrl: "./guitar/", 
+    onload: () => { 
+        console.log("Đã nạp full bộ nốt A1-A6!");
+        document.querySelector('#load-msg').innerText = "TRẠNG THÁI: SẴN SÀNG ✅";
+    }
+}).toDestination();
+
+    // Định nghĩa nốt cho từng hợp âm (Đã fix nhạc lý chuẩn)
+    const CHORDS = {
+        'C':  [null, "C3", "E3", "G3", "C4", "E4"],
+        'G':  ["G2", "B2", "D3", "G3", "B3", "G4"],
+        'Am': [null, "A2", "E3", "A3", "C4", "E4"],
+        'F':  ["F2", "C3", "F3", "A3", "C4", "F4"],
+        'Em': ["E2", "B2", "E3", "G3", "B3", "E4"],
+        'Dm': [null, null, "D3", "A3", "D4", "F4"],
+        'D':  [null, null, "D3", "A3", "D4", "F#4"],
+        'E':  ["E2", "B2", "E3", "G#3", "B3", "E4"],
+        'Bm': [null, "B2", "F#3", "B3", "D4", "F#4"]
+    };
+
+    // Điệu nhạc
+    const PATTERNS = {
+        'ballad': [
+            { t: 0, a: 'down', v: 0.9 }, { t: '4n', a: 'down', v: 0.7 }, 
+            { t: '4n.', a: 'up', v: 0.5 }, { t: '2n', a: 'up', v: 0.6 }, 
+            { t: '2n.', a: 'down', v: 0.7 }, { t: '2n. + 8n', a: 'up', v: 0.5 }
+        ],
+        'pick': [
+            { t: 0, s: 0 }, { t: '8n', s: 2 }, { t: '4n', s: 3 }, { t: '4n + 8n', s: 4 },
+            { t: '2n', s: 3 }, { t: '2n + 8n', s: 2 }, { t: '2n + 4n', s: 4 }, { t: '2n + 4n + 8n', s: 3 }
+        ],
+        'fox': [
+            { t: 0, s: 0 }, { t: '8n', a: 'slap' }, { t: '4n', s: 1 }, { t: '4n + 8n', a: 'slap' }
+        ]
+    };
+
+    let loopQueue = [];
+    let currentStyle = 'ballad';
+    let isLooping = false;
+    let loopIdx = 0;
+
+    function setStyle(s, b) {
+        currentStyle = s;
+        document.querySelectorAll('.style-btn').forEach(btn => btn.classList.remove('selected'));
+        b.classList.add('selected');
+    }
+
+    // CHƠI TAY
+    async function playManual(name) {
+        await Tone.start();
+        if (isLooping) return; 
+        playChordAction(name, Tone.now());
+    }
+
+    function playChordAction(name, startTime) {
+        const notes = CHORDS[name];
+        const pattern = PATTERNS[currentStyle];
+        
+        pattern.forEach(p => {
+            const time = startTime + Tone.Time(p.t);
+            if (p.a === 'down') {
+                notes.filter(n => n).forEach((n, i) => sampler.triggerAttackRelease(n, "1n", time + i*0.03, p.v));
+            } else if (p.a === 'up') {
+                notes.filter(n => n).reverse().forEach((n, i) => sampler.triggerAttackRelease(n, "1n", time + i*0.02, p.v));
+            } else if (p.a === 'slap') {
+                sampler.triggerAttackRelease(notes.filter(n => n).slice(-3), "16n", time, 0.3);
+            } else {
+                const note = notes[p.s] || notes.filter(n => n)[0];
+                sampler.triggerAttackRelease(note, "2n", time, 0.8);
+            }
+        });
+    }
+
+    // VÒNG LẶP
+    function addToLoop(e, name) {
+        e.stopPropagation();
+        loopQueue.push(name);
+        renderLoop();
+    }
+
+    function clearLoop() { loopQueue = []; stopLoop(); renderLoop(); }
+
+    function renderLoop() {
+        const d = document.getElementById('loop-display');
+        d.innerHTML = loopQueue.length ? '' : '<div style="color: #333; width: 100%; text-align: center;">Chạm hợp âm để chơi tay / Bấm (+) để nạp vòng lặp</div>';
+        loopQueue.forEach((c, i) => {
+            const div = document.createElement('div');
+            div.className = `chord-tag ${i === loopIdx && isLooping ? 'active' : ''}`;
+            div.innerText = c;
+            d.appendChild(div);
+        });
+    }
+
+    async function toggleLoop() {
+        if (isLooping) { stopLoop(); return; }
+        if (!loopQueue.length) return;
+        await Tone.start();
+        isLooping = true;
+        loopIdx = 0;
+        document.getElementById('actionBtn').innerText = "DỪNG LẠI ■";
+        document.getElementById('actionBtn').className = "main-btn btn-stop";
+        Tone.Transport.bpm.value = currentStyle === 'fox' ? 125 : 90;
+        Tone.Transport.scheduleRepeat(time => {
+            playChordAction(loopQueue[loopIdx], time);
+            Tone.Draw.schedule(() => renderLoop(), time);
+            loopIdx = (loopIdx + 1) % loopQueue.length;
+        }, "1m");
+        Tone.Transport.start();
+    }
+
+    function stopLoop() {
+        isLooping = false;
+        Tone.Transport.stop();
+        Tone.Transport.cancel();
+        document.getElementById('actionBtn').innerText = "CHẠY VÒNG LẶP ▶";
+        document.getElementById('actionBtn').className = "main-btn btn-run";
+        renderLoop();
+    }
+</script>
+</body>
+</html>
